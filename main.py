@@ -36,11 +36,14 @@ async def parce_cad_nums(message: types.Message):
     """добавляет в очередь кадастровые номера, найденные в сообщении"""
     found_cad_nums = re.findall(r"\d{2}:\d{2}:\d{7}:\d{1,5}", message.text)
     found_cad_nums = sorted(set(found_cad_nums))
+
     try:
         if found_cad_nums:
             found, not_found = [], []
             for cad_num in found_cad_nums:
+                print('CADNUM', cad_num)
                 results = docfetcher_search(f'"{cad_num}"')
+                print(results)
                 if results:
                     found.append(cad_num)
                 else:
@@ -52,11 +55,12 @@ async def parce_cad_nums(message: types.Message):
                 text += '</code>'
             else:
                 text = 'Все номера найдены в базе'
+
+        else:
+            text = "Введите один или несколько кадастровых номеров."
     except Py4JNetworkError:
         text = 'DocFetcher не запущен'
-        await telegram_bot.send_message(message.from_user.id, text, parse_mode="HTML")
-    else:
-        await telegram_bot.send_message(message.from_user.id, "Введите один или несколько кадастровых номеров. Дополнительная информация: /help")
+    await telegram_bot.send_message(message.from_user.id, text, parse_mode="HTML")
 
 
 def main():
@@ -114,6 +118,5 @@ def docfetcher_search(query, port=28834):
 
 
 if __name__ == '__main__':
-    print('V. 0.004')
     # loop = asyncio.get_event_loop()
     executor.start_polling(dp, skip_updates=True)
