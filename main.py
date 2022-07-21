@@ -93,6 +93,9 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
                 task_path = os.path.join(TASKS_ROOT, state_data['dirname'])
                 if not os.path.exists(task_path):
                     os.makedirs(task_path)
+                    text += f'Создан каталог:\n<code>{task_path}</code>\n'
+                else:
+                    text += f'Каталог уже существует:\n<code>{task_path}</code>\n'
 
                 for cad_num in found:
                     for file in found[cad_num]:
@@ -101,13 +104,6 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
                         file_size = os.path.getsize(file.getPathStr())
                         if (ext_date, file_size) not in dates_and_sizes:
                             dates_and_sizes.append((ext_date, file_size))
-                            n_copied += 1
-                            year = ext_date[:4]
-
-                            if year in years_count:
-                                years_count[year] += 1
-                            else:
-                                years_count[year] = 1
                             ext_dir_path = os.path.join(task_path, ext_date)
                             if not os.path.exists(ext_dir_path):
                                 os.makedirs(ext_dir_path)
@@ -115,17 +111,23 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
                             if not os.path.exists(target_filename):
                                 shutil.copy(file.getPathStr(), ext_dir_path)
                                 print('\tСкопировано. Новое расположение:', ext_dir_path)
+                                n_copied += 1
+                                year = ext_date[:4]
+                                if year in years_count:
+                                    years_count[year] += 1
+                                else:
+                                    years_count[year] = 1
                             else:
-                                print('\tКопирование пропущено, файл уже существует:', target_filename)
+                                print('\tКопирование пропущено, файл c таким именем уже существует:', target_filename)
                         else:
                             print('\tОбработка пропущена, файл с таким содерижмым уже существует')
 
-                text += f'Создан каталог:\n<code>{task_path}</code>\n'
-                text += f'Скопирован{"ы" if n_copied > 1 else ""} {n_copied} файл{"а" if n_copied%10 in (2,3,4) else ""}{"ов" if n_copied%10 in (5,6,7,8,9,0) else ""}\n'
-                text += f'По годам:<code>\n'
-                for year in sorted(years_count):
-                    text += f'{year}: {years_count[year]}\n'
-                text += '</code>\n'
+                text += f'Скопирован{"ы" if n_copied != 1 else ""} {n_copied} файл{"а" if n_copied%10 in (2,3,4) else ""}{"ов" if n_copied%10 in (5,6,7,8,9,0) else ""}\n'
+                if years_count:
+                    text += f'По годам:<code>\n'
+                    for year in sorted(years_count):
+                        text += f'{year}: {years_count[year]}\n'
+                    text += '</code>\n'
         else:
             text = "Кадастровых номеров не найдено. Задание отменено."
     except Py4JNetworkError:
