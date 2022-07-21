@@ -110,7 +110,7 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
                         shutil.copy(file.getPathStr(), ext_dir_path)
 
                 text += f'Создан каталог:\n<code>{task_path}</code>\n'
-                text += f'Скопирован{"ы" if n_copied > 1 else ""} {n_copied} файл{"а" if n_copied%10 in (2,3,4) else ""}{"ов" if n_copied in (5,6,7,8,9,0) else ""}\n'
+                text += f'Скопирован{"ы" if n_copied > 1 else ""} {n_copied} файл{"а" if n_copied%10 in (2,3,4) else ""}{"ов" if n_copied%10 in (5,6,7,8,9,0) else ""}\n'
                 text += f'По годам:<code>\n'
                 for year in sorted(years_count):
                     text += f'{year}: {years_count[year]}\n'
