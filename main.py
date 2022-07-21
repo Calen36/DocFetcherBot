@@ -95,7 +95,7 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
                     text += f'{cad_num}\n'
                 text += '</code>\n'
             else:
-                text = 'Все номера найдены в базе'
+                text = 'Все номера найдены в базe\n'
             if found:
                 state_data = await state.get_data()
                 task_path = os.path.join(TASKS_ROOT, state_data['dirname'])
