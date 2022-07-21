@@ -73,12 +73,12 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
     found_cad_nums = extract_cad_nums(message.text)
     try:
         if found_cad_nums:
-            found, not_found, text, n_copied, years_count = {}, [], '', 0, {}
+            found, years_count = {}, {}
+            not_found, text, n_copied, dates_and_sizes = [], '', 0, []
             for cad_num in found_cad_nums:
                 results = docfetcher_search(f'"{cad_num}"')
                 if results:
                     found[cad_num] = [r for r in results if r.getType() == 'xml']
-                    n_copied += len(found[cad_num])
                 else:
                     not_found.append(cad_num)
             if not_found:
@@ -96,16 +96,29 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
 
                 for cad_num in found:
                     for file in found[cad_num]:
+                        print('Обрабатывается файл', file.getPathStr())
                         ext_date = get_date(file.getPathStr())
-                        year = ext_date[:4]
-                        if year in years_count:
-                            years_count[year] += 1
+                        file_size = os.path.getsize(file.getPathStr())
+                        if (ext_date, file_size) not in dates_and_sizes:
+                            dates_and_sizes.append((ext_date, file_size))
+                            n_copied += 1
+                            year = ext_date[:4]
+
+                            if year in years_count:
+                                years_count[year] += 1
+                            else:
+                                years_count[year] = 1
+                            ext_dir_path = os.path.join(task_path, ext_date)
+                            if not os.path.exists(ext_dir_path):
+                                os.makedirs(ext_dir_path)
+                            target_filename = os.path.join(ext_dir_path, file.getFilename())
+                            if not os.path.exists(target_filename):
+                                shutil.copy(file.getPathStr(), ext_dir_path)
+                                print('\tСкопировано. Новое расположение:', ext_dir_path)
+                            else:
+                                print('\tКопирование пропущено, файл уже существует:', target_filename)
                         else:
-                            years_count[year] = 1
-                        ext_dir_path = os.path.join(task_path, ext_date)
-                        if not os.path.exists(ext_dir_path):
-                            os.makedirs(ext_dir_path)
-                        shutil.copy(file.getPathStr(), ext_dir_path)
+                            print('\tОбработка пропущена, файл с таким содерижмым уже существует')
 
                 text += f'Создан каталог:\n<code>{task_path}</code>\n'
                 text += f'Скопирован{"ы" if n_copied > 1 else ""} {n_copied} файл{"а" if n_copied%10 in (2,3,4) else ""}{"ов" if n_copied%10 in (5,6,7,8,9,0) else ""}\n'
