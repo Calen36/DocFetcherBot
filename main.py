@@ -27,12 +27,6 @@ kbd = types.ReplyKeyboardMarkup(resize_keyboard=True)
 kbd.row(button_names['create_task'],)
 
 
-# def check_whitelist(func):
-#     async def wrapper(msg: types.Message):
-#         if msg.from_user.id in WHITELIST:
-#             await func(msg)
-#     return wrapper
-
 def extract_cad_nums(text):
     found_cad_nums = re.findall(r"\d{2}:\d{2}:\d{7}:\d{1,5}", text)
     return sorted(set(found_cad_nums))
@@ -119,7 +113,7 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
                 text += f'Скопирован{"ы" if n_copied > 1 else ""} {n_copied} файл{"а" if n_copied%10 in (2,3,4) else ""}{"ов" if n_copied in (5,6,7,8,9,0) else ""}\n'
                 text += f'По годам:<code>\n'
                 for year in sorted(years_count):
-                    text += f'{year}: {years_count[year]}'
+                    text += f'{year}: {years_count[year]}\n'
                 text += '</code>\n'
         else:
             text = "Кадастровых номеров не найдено. Задание отменено."
