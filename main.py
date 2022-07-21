@@ -114,7 +114,11 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
             text = "Кадастровых номеров не найдено. Задание отменено."
     except Py4JNetworkError:
         text = 'DocFetcher не запущен'
-    await telegram_bot.send_message(message.from_user.id, text, reply_markup=kbd, parse_mode="HTML")
+    while text:
+        newtext = text[4095:]
+        text = text[:4095]
+        await telegram_bot.send_message(message.from_user.id, text, reply_markup=kbd, parse_mode="HTML")
+        text = newtext
     await state.finish()
 
 
