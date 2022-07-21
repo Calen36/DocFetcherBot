@@ -3,6 +3,7 @@ import re
 
 from py4j.java_gateway import JavaGateway, GatewayParameters
 from py4j.java_gateway import java_import
+from py4j.protocol import Py4JNetworkError
 
 from aiogram import Bot, types
 from aiogram.dispatcher import Dispatcher
@@ -35,22 +36,24 @@ async def parce_cad_nums(message: types.Message):
     """добавляет в очередь кадастровые номера, найденные в сообщении"""
     found_cad_nums = re.findall(r"\d{2}:\d{2}:\d{7}:\d{1,5}", message.text)
     found_cad_nums = sorted(set(found_cad_nums))
-    if found_cad_nums:
-        found, not_found = [], []
-        for cad_num in found_cad_nums:
-            results = docfetcher_search(f'"{cad_num}"')
-            if results:
-                found.append(cad_num)
+    try:
+        if found_cad_nums:
+            found, not_found = [], []
+            for cad_num in found_cad_nums:
+                results = docfetcher_search(f'"{cad_num}"')
+                if results:
+                    found.append(cad_num)
+                else:
+                    not_found.append(cad_num)
+            if not_found:
+                text = 'Не найдены в базе:\n<code>'
+                for x in not_found:
+                    text += f'{x}\n'
+                text += '</code>'
             else:
-                not_found.append(cad_num)
-        if not_found:
-            text = 'Не найдены в базе:\n<code>'
-            for x in not_found:
-                text += f'{x}\n'
-            text += '</code>'
-        else:
-            text = 'Все номера найдены в базе'
-
+                text = 'Все номера найдены в базе'
+    except Py4JNetworkError:
+        text = 'DocFetcher не запущен'
         await telegram_bot.send_message(message.from_user.id, text, parse_mode="HTML")
     else:
         await telegram_bot.send_message(message.from_user.id, "Введите один или несколько кадастровых номеров. Дополнительная информация: /help")
