@@ -41,9 +41,7 @@ async def parce_cad_nums(message: types.Message):
         if found_cad_nums:
             found, not_found = [], []
             for cad_num in found_cad_nums:
-                print('CADNUM', cad_num)
                 results = docfetcher_search(f'"{cad_num}"')
-                print(results)
                 if results:
                     found.append(cad_num)
                 else:
@@ -55,7 +53,6 @@ async def parce_cad_nums(message: types.Message):
                 text += '</code>'
             else:
                 text = 'Все номера найдены в базе'
-
         else:
             text = "Введите один или несколько кадастровых номеров."
     except Py4JNetworkError:
