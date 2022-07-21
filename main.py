@@ -117,7 +117,7 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
     while text:
         newtext = text[4095:]
         text = text[:4095]
-        await telegram_bot.send_message(message.from_user.id, text, reply_markup=kbd, parse_mode="HTML")
+        await telegram_bot.send_message(message.from_user.id, text, reply_markup=kbd,)
         text = newtext
     await state.finish()
 
