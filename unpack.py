@@ -11,15 +11,22 @@ def fix_ns(treeroot):
 
 
 def get_date(extract_path):
-    treeroot = fix_ns(ElementTree.parse(extract_path).getroot())
-    target = list(treeroot.iter('Sender'))[0]
-    date = target.get('Date_Upload')
-    if date:
-        return date
-    target = list(treeroot.iter('DeclarAttribute'))[0]
-    date = target.get('ExtractDate')
-    if date:
-        date = '-'.join(reversed(date.split('.')))
-        return date
-    return '0000-00-00'
-
+    try:
+        treeroot = fix_ns(ElementTree.parse(extract_path).getroot())
+        target = list(treeroot.iter('Sender'))[0]
+        if target:
+            target = target[0]
+            date = target.get('Date_Upload')
+            if date:
+                return date
+        target = list(treeroot.iter('DeclarAttribute'))
+        if target:
+            target = target[0]
+            date = target.get('ExtractDate')
+            if date:
+                date = '-'.join(reversed(date.split('.')))
+                return date
+        return '0000-00-00'
+    except Exception as ex:
+        print(f'Ошибка получения даты\n\t{extract_path}\n\t{ex}')
+        return '0000-00-00'
