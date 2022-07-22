@@ -74,7 +74,7 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
     try:
         if found_cad_nums:
             found, years_count = {}, {}
-            not_found, text, n_copied, dates_and_sizes = [], '', 0, []
+            not_found, text, n_copied, cn_dates_and_sizes = [], '', 0, []
             for cad_num in found_cad_nums:
                 results = docfetcher_search(f'"{cad_num}"')
                 if results:
@@ -102,8 +102,8 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
                         print('Обрабатывается файл', file.getPathStr())
                         ext_date = get_date(file.getPathStr())
                         file_size = os.path.getsize(file.getPathStr())
-                        if (ext_date, file_size) not in dates_and_sizes:
-                            dates_and_sizes.append((ext_date, file_size))
+                        if (cad_num, ext_date, file_size) not in cn_dates_and_sizes:
+                            cn_dates_and_sizes.append((cad_num, ext_date, file_size))
                             ext_dir_path = os.path.join(task_path, ext_date)
                             if not os.path.exists(ext_dir_path):
                                 os.makedirs(ext_dir_path)
