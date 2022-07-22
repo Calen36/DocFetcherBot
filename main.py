@@ -100,27 +100,30 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
                 for cad_num in found:
                     for file in found[cad_num]:
                         print('Обрабатывается файл', file.getPathStr())
-                        ext_date = get_date(file.getPathStr())
-                        file_size = os.path.getsize(file.getPathStr())
-                        if (cad_num, ext_date, file_size) not in cn_dates_and_sizes:
-                            cn_dates_and_sizes.append((cad_num, ext_date, file_size))
-                            ext_dir_path = os.path.join(task_path, ext_date)
-                            if not os.path.exists(ext_dir_path):
-                                os.makedirs(ext_dir_path)
-                            target_filename = os.path.join(ext_dir_path, file.getFilename())
-                            if not os.path.exists(target_filename):
-                                shutil.copy(file.getPathStr(), ext_dir_path)
-                                print('\tСкопировано. Новое расположение:', ext_dir_path)
-                                n_copied += 1
-                                year = ext_date[:4]
-                                if year in years_count:
-                                    years_count[year] += 1
+                        try:
+                            ext_date = get_date(file.getPathStr())
+                            file_size = os.path.getsize(file.getPathStr())
+                            if (cad_num, ext_date, file_size) not in cn_dates_and_sizes:
+                                cn_dates_and_sizes.append((cad_num, ext_date, file_size))
+                                ext_dir_path = os.path.join(task_path, ext_date)
+                                if not os.path.exists(ext_dir_path):
+                                    os.makedirs(ext_dir_path)
+                                target_filename = os.path.join(ext_dir_path, file.getFilename())
+                                if not os.path.exists(target_filename):
+                                    shutil.copy(file.getPathStr(), ext_dir_path)
+                                    print('\tСкопировано. Новое расположение:', ext_dir_path)
+                                    n_copied += 1
+                                    year = ext_date[:4]
+                                    if year in years_count:
+                                        years_count[year] += 1
+                                    else:
+                                        years_count[year] = 1
                                 else:
-                                    years_count[year] = 1
+                                    print('\tКопирование пропущено, файл c таким именем уже существует:', target_filename)
                             else:
-                                print('\tКопирование пропущено, файл c таким именем уже существует:', target_filename)
-                        else:
-                            print('\tОбработка пропущена, файл с таким содерижмым уже существует')
+                                print('\tОбработка пропущена, файл с таким содерижмым уже существует')
+                        except FileNotFoundError as ex:
+                            print('\tФайл не доступен:', ex)
 
                 text += f'Скопирован{"ы" if n_copied != 1 else ""} {n_copied} файл{"а" if n_copied%10 in (2,3,4) else ""}{"ов" if n_copied%10 in (5,6,7,8,9,0) else ""}\n'
                 if years_count:
