@@ -16,13 +16,27 @@ from aiogram.dispatcher import FSMContext
 
 from unpack import get_date
 from config import TG_KEY, TASKS_ROOT, WHITELIST
+import globals
 
 telegram_bot = Bot(token=TG_KEY)
 dp = Dispatcher(telegram_bot, storage=MemoryStorage())
 
-button_names = {'create_task': 'Создать задание',}
-kbd = types.ReplyKeyboardMarkup(resize_keyboard=True)
-kbd.row(button_names['create_task'],)
+button_names = {'create_task': 'Создать задание',
+                'verbose_off': '⬜ Подробный вывод',
+                'verbose_on': '☑ Подробный вывод',
+                }
+
+
+kbd1 = types.ReplyKeyboardMarkup(resize_keyboard=True)
+kbd1.row(button_names['create_task'], button_names['verbose_off'])
+kbd2 = types.ReplyKeyboardMarkup(resize_keyboard=True)
+kbd2.row(button_names['create_task'], button_names['verbose_on'])
+
+
+def get_kbd():
+    if globals.VERBOSE:
+        return kbd2
+    return kbd1
 
 
 def extract_cad_nums(text):
@@ -43,12 +57,21 @@ class TaskCreation(StatesGroup):
     input_cad_nums = State()
 
 
+@dp.message_handler(Text(endswith=button_names['verbose_on'][2:]))
+@check_whitelist
+async def toggle_verbose(message: types.Message, *args, **kwargs):
+    globals.VERBOSE = not globals.VERBOSE
+    text = button_names['verbose_on'][2:] + (' ВКЛ' if globals.VERBOSE else ' ВЫКЛ')
+    await telegram_bot.send_message(message.from_user.id, text, reply_markup=get_kbd(), parse_mode="HTML")
+
+
+
 @dp.message_handler(Text(equals=button_names['create_task']))
 @check_whitelist
 async def create_task(message: types.Message, *args, **kwargs):
     text = 'Введите название каталога'
     await TaskCreation.task_naming.set()
-    await telegram_bot.send_message(message.from_user.id, text, reply_markup=kbd, parse_mode="HTML")
+    await telegram_bot.send_message(message.from_user.id, text, reply_markup=get_kbd(), parse_mode="HTML")
 
 
 @dp.message_handler(state=TaskCreation.task_naming)
@@ -64,7 +87,7 @@ async def input_task_name(message: types.Message, state: FSMContext,  *args, **k
         await state.update_data(dirname=dirname)
         await TaskCreation.input_cad_nums.set()
         text = f"Введите кадастровые номера"
-    await telegram_bot.send_message(message.from_user.id, text, reply_markup=kbd, parse_mode="HTML")
+    await telegram_bot.send_message(message.from_user.id, text, reply_markup=get_kbd(), parse_mode="HTML")
 
 
 @dp.message_handler(state=TaskCreation.input_cad_nums)
@@ -115,9 +138,9 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
                                     n_copied += 1
                                     year = ext_date[:4]
                                     if year in years_count:
-                                        years_count[year] += 1
+                                        years_count[year].append(cad_num)
                                     else:
-                                        years_count[year] = 1
+                                        years_count[year] = [cad_num]
                                 else:
                                     print('\tКопирование пропущено, файл c таким именем уже существует:', target_filename)
                             else:
@@ -129,20 +152,22 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
                 if years_count:
                     text += f'По годам:<code>\n'
                     for year in sorted(years_count):
-                        text += f'{year}: {years_count[year]}\n'
+                        text += f'{"⯈ " if globals.VERBOSE else ""}{year}: {len(years_count[year])}\n'
+                        if globals.VERBOSE:
+                            for cn in years_count[year]:
+                                text += f"{cn}\n"
                     text += '</code>\n'
         else:
             text = "Кадастровых номеров не найдено. Задание отменено."
     except Py4JNetworkError:
         text = 'DocFetcher не запущен'
-    await telegram_bot.send_message(message.from_user.id, text, parse_mode="HTML", reply_markup=kbd,)
+    await telegram_bot.send_message(message.from_user.id, text, parse_mode="HTML", reply_markup=get_kbd(),)
     await state.finish()
 
 
 @dp.message_handler()
 @check_whitelist
 async def parce_cad_nums(message: types.Message, **kwargs):
-    """добавляет в очередь кадастровые номера, найденные в сообщении"""
     found_cad_nums = extract_cad_nums(message.text)
 
     try:
@@ -163,7 +188,7 @@ async def parce_cad_nums(message: types.Message, **kwargs):
             text = "Введите один или несколько кадастровых номеров."
     except Py4JNetworkError:
         text = 'DocFetcher не запущен'
-    await telegram_bot.send_message(message.from_user.id, text, reply_markup=kbd, parse_mode="HTML")
+    await telegram_bot.send_message(message.from_user.id, text, reply_markup=get_kbd(), parse_mode="HTML")
 
 
 def docfetcher_search(query, port=28834):
