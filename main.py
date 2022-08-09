@@ -44,6 +44,12 @@ def extract_cad_nums(text):
     return sorted(set(found_cad_nums))
 
 
+def get_type2_filelist():
+    type2_dataset = docfetcher_search(
+        f'Выписка из Единого государственного реестра недвижимости о переходе прав на объект недвижимости')
+    return [r.getPathStr() for r in type2_dataset]
+
+
 def check_whitelist(func):
     async def wrapper(*args, **kwargs):
         for arg in args:
@@ -63,7 +69,6 @@ async def toggle_verbose(message: types.Message, *args, **kwargs):
     globals.VERBOSE = not globals.VERBOSE
     text = button_names['verbose_on'][2:] + (' ВКЛ' if globals.VERBOSE else ' ВЫКЛ')
     await telegram_bot.send_message(message.from_user.id, text, reply_markup=get_kbd(), parse_mode="HTML")
-
 
 
 @dp.message_handler(Text(equals=button_names['create_task']))
@@ -98,6 +103,7 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
         if found_cad_nums:
             found, years_count = {}, {}
             not_found, text, n_copied, cn_dates_and_sizes = [], '', 0, []
+            type2_files = get_type2_filelist()
             for cad_num in found_cad_nums:
                 results = docfetcher_search(f'"{cad_num}"')
                 if results:
@@ -126,6 +132,7 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
                         try:
                             ext_date = get_date(file.getPathStr())
                             file_size = os.path.getsize(file.getPathStr())
+                            ext_type = 2 if file.getPathStr() in type2_files else 1
                             if (cad_num, ext_date, file_size) not in cn_dates_and_sizes:
                                 cn_dates_and_sizes.append((cad_num, ext_date, file_size))
                                 ext_dir_path = os.path.join(task_path, ext_date)
@@ -138,9 +145,9 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
                                     n_copied += 1
                                     year = ext_date[:4]
                                     if year in years_count:
-                                        years_count[year].append(cad_num)
+                                        years_count[year].append((cad_num, ext_type))
                                     else:
-                                        years_count[year] = [cad_num]
+                                        years_count[year] = [(cad_num, ext_type)]
                                 else:
                                     print('\tКопирование пропущено, файл c таким именем уже существует:', target_filename)
                             else:
@@ -154,8 +161,8 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
                     for year in sorted(years_count):
                         text += f'{"⯈ " if globals.VERBOSE else ""}{year}: {len(years_count[year])}\n'
                         if globals.VERBOSE:
-                            for cn in years_count[year]:
-                                text += f"{cn}\n"
+                            for cn, et in years_count[year]:
+                                text += f"{cn}{' ❷' if et == 2 else ''}\n"
                     text += '</code>\n'
         else:
             text = "Кадастровых номеров не найдено. Задание отменено."
@@ -169,21 +176,39 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
 @check_whitelist
 async def parce_cad_nums(message: types.Message, **kwargs):
     found_cad_nums = extract_cad_nums(message.text)
-
+    text = ''
     try:
         if found_cad_nums:
-            not_found = []
+            type2_files = get_type2_filelist()
+            found, not_found = [], []
             for cad_num in found_cad_nums:
-                results = docfetcher_search(f'"{cad_num}"')
-                if not results:
+                results_dataset = docfetcher_search(f'"{cad_num}"')
+                if not results_dataset:
                     not_found.append(cad_num)
+                else:
+                    result_files = [r.getPathStr() for r in results_dataset]
+                    print(result_files)
+                    types_count = {1: 0, 2: 0}
+                    for r_file in result_files:
+                        if r_file in type2_files:
+                            types_count[2] += 1
+                        else:
+                            types_count[1] += 1
+                    if types_count[1]:
+                        found.append((cad_num, 1, types_count[1]))
+                    if types_count[2]:
+                        found.append((cad_num, 2, types_count[2]))
+
             if not_found:
-                text = 'Не найдены в базе:\n<code>'
+                text += 'Не найдены в базе:\n<code>'
                 for x in not_found:
                     text += f'{x}\n'
                 text += '</code>'
-            else:
-                text = 'Все номера найдены в базе'
+            if found:
+                text += 'Найдены:\n<code>'
+                for x in found:
+                    text += f"{x[0]} {'❷ ' if x[1] == 2 else ''}{x[2] if x[2]>1 else ''}{'шт' if x[2]>1 else ''}\n"
+                text += '</code>'
         else:
             text = "Введите один или несколько кадастровых номеров."
     except Py4JNetworkError:
