@@ -202,11 +202,13 @@ async def parce_cad_nums(message: types.Message, **kwargs):
                         found.append((cad_num, 2, types_count[2]))
 
             if not_found:
-                text += 'Не найдены в базе:\n<code>'
+                text = 'Не найдены в базе:\n<code>'
                 for x in not_found:
                     text += f'{x}\n'
                 text += '</code>'
             if found:
+                if text:
+                    text += '\n'
                 text += 'Найдены:\n<code>'
                 for x in found:
                     text += f"{x[0]} {'❷ ' if x[1] == 2 else ''}{str(x[2]) + 'шт.' if x[2]>1 else ''}\n"
