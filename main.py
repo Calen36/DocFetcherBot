@@ -44,11 +44,12 @@ def extract_cad_nums(text):
     return sorted(set(found_cad_nums))
 
 
-def get_type2_filelist():
+def get_type2_files_set():
     type2_dataset = docfetcher_search(
         f'"Выписка из Единого государственного реестра недвижимости о переходе прав на объект недвижимости"')
-    result = [r.getPathStr() for r in type2_dataset if r.getType() == 'xml']
+    result = {r.getPathStr() for r in type2_dataset if r.getType() == 'xml'}
     return result
+
 
 def check_whitelist(func):
     async def wrapper(*args, **kwargs):
@@ -103,7 +104,7 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
         if found_cad_nums:
             found, years_count = {}, {}
             not_found, text, n_copied, cn_dates_and_sizes = [], '', 0, []
-            type2_files = get_type2_filelist()
+            type2_files = get_type2_files_set()
             for cad_num in found_cad_nums:
                 results = docfetcher_search(f'"{cad_num}"')
                 if results:
@@ -179,7 +180,7 @@ async def parce_cad_nums(message: types.Message, **kwargs):
     text = ''
     try:
         if found_cad_nums:
-            type2_files = get_type2_filelist()
+            type2_files = get_type2_files_set()
             found, not_found = [], []
             for cad_num in found_cad_nums:
                 results_dataset = docfetcher_search(f'"{cad_num}"')
@@ -187,12 +188,9 @@ async def parce_cad_nums(message: types.Message, **kwargs):
                     not_found.append(cad_num)
                 else:
                     result_files = [r.getPathStr() for r in results_dataset if r.getType() == 'xml']
-                    print(result_files)
                     types_count = {1: 0, 2: 0}
                     for r_file in result_files:
-                        print('R_FILE', r_file)
                         if r_file in type2_files:
-                            print('YUP')
                             types_count[2] += 1
                         else:
                             types_count[1] += 1
