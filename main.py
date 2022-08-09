@@ -46,9 +46,9 @@ def extract_cad_nums(text):
 
 def get_type2_filelist():
     type2_dataset = docfetcher_search(
-        f'Выписка из Единого государственного реестра недвижимости о переходе прав на объект недвижимости')
-    return [r.getPathStr() for r in type2_dataset]
-
+        f'"Выписка из Единого государственного реестра недвижимости о переходе прав на объект недвижимости"')
+    result = [r.getPathStr() for r in type2_dataset if r.getType() == 'xml']
+    return result
 
 def check_whitelist(func):
     async def wrapper(*args, **kwargs):
@@ -186,11 +186,13 @@ async def parce_cad_nums(message: types.Message, **kwargs):
                 if not results_dataset:
                     not_found.append(cad_num)
                 else:
-                    result_files = [r.getPathStr() for r in results_dataset]
+                    result_files = [r.getPathStr() for r in results_dataset if r.getType() == 'xml']
                     print(result_files)
                     types_count = {1: 0, 2: 0}
                     for r_file in result_files:
+                        print('R_FILE', r_file)
                         if r_file in type2_files:
+                            print('YUP')
                             types_count[2] += 1
                         else:
                             types_count[1] += 1
@@ -207,7 +209,7 @@ async def parce_cad_nums(message: types.Message, **kwargs):
             if found:
                 text += 'Найдены:\n<code>'
                 for x in found:
-                    text += f"{x[0]} {'❷ ' if x[1] == 2 else ''}{x[2] if x[2]>1 else ''}{'шт' if x[2]>1 else ''}\n"
+                    text += f"{x[0]} {'❷ ' if x[1] == 2 else ''}{str(x[2]) + 'шт.' if x[2]>1 else ''}\n"
                 text += '</code>'
         else:
             text = "Введите один или несколько кадастровых номеров."
