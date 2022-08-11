@@ -64,6 +64,27 @@ class TaskCreation(StatesGroup):
     input_cad_nums = State()
 
 
+async def send_multipart_msg(user_id, text):
+    parts = []
+    current_part = []
+    for line in text.splitlines():
+        if len('\n'.join(current_part) + line) < 4000:
+            current_part.append(line)
+        else:
+            parts.append(current_part)
+            current_part = [line]
+    if current_part:
+        parts.append(current_part)
+    parts = ['\n'.join(p) for p in parts]
+    for i, part in enumerate(parts):
+        if part.count('<code>') > part.count('</code>'):
+            parts[i] = part + '</code>'
+        if part.count('<code>') < part.count('</code>'):
+            parts[i] = '<code>' + part
+    for part in parts:
+        await telegram_bot.send_message(user_id, part, reply_markup=get_kbd(), parse_mode="HTML")
+
+
 @dp.message_handler(Text(endswith=button_names['verbose_on'][2:]))
 @check_whitelist
 async def toggle_verbose(message: types.Message, *args, **kwargs):
@@ -169,7 +190,8 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
             text = "Кадастровых номеров не найдено. Задание отменено."
     except Py4JNetworkError:
         text = 'DocFetcher не запущен'
-    await telegram_bot.send_message(message.from_user.id, text, parse_mode="HTML", reply_markup=get_kbd(),)
+    await send_multipart_msg(message.from_user.id, text)
+    # await telegram_bot.send_message(message.from_user.id, text, parse_mode="HTML", reply_markup=get_kbd(),)
     await state.finish()
 
 
@@ -215,7 +237,8 @@ async def parce_cad_nums(message: types.Message, **kwargs):
             text = "Введите один или несколько кадастровых номеров."
     except Py4JNetworkError:
         text = 'DocFetcher не запущен'
-    await telegram_bot.send_message(message.from_user.id, text, reply_markup=get_kbd(), parse_mode="HTML")
+    await send_multipart_msg(message.from_user.id, text)
+    # await telegram_bot.send_message(message.from_user.id, text, reply_markup=get_kbd(), parse_mode="HTML")
 
 
 def docfetcher_search(query, port=28834):
