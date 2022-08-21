@@ -24,13 +24,14 @@ dp = Dispatcher(telegram_bot, storage=MemoryStorage())
 button_names = {'create_task': 'Создать задание',
                 'verbose_off': '⬜ Подробный вывод',
                 'verbose_on': '☑ Подробный вывод',
+                'prohibitions': 'Запреты и аресты'
                 }
 
 
 kbd1 = types.ReplyKeyboardMarkup(resize_keyboard=True)
-kbd1.row(button_names['create_task'], button_names['verbose_off'])
+kbd1.row(button_names['create_task'], button_names['verbose_off'], button_names['prohibitions'])
 kbd2 = types.ReplyKeyboardMarkup(resize_keyboard=True)
-kbd2.row(button_names['create_task'], button_names['verbose_on'])
+kbd2.row(button_names['create_task'], button_names['verbose_on'], button_names['prohibitions'])
 
 
 def get_kbd():
@@ -193,6 +194,19 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
     await send_multipart_msg(message.from_user.id, text)
     # await telegram_bot.send_message(message.from_user.id, text, parse_mode="HTML", reply_markup=get_kbd(),)
     await state.finish()
+
+
+@dp.message_handler(Text(equals=button_names['prohibitions']))
+@check_whitelist
+async def show_prohibitons(message: types.Message, *args, **kwargs):
+    try:
+        results_java_obj = docfetcher_search(f'запрет арест')
+        results = [r.getFilename() for r in results_java_obj]
+        text = '\n'.join(results)
+    except Py4JNetworkError:
+        text = 'DocFetcher не запущен'
+
+    await send_multipart_msg(message.from_user.id, text)
 
 
 @dp.message_handler()
