@@ -201,7 +201,7 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
 async def show_prohibitons(message: types.Message, *args, **kwargs):
     try:
         results_java_obj = docfetcher_search(f'запрет арест')
-        results = [r.getFilename() for r in results_java_obj]
+        results = [r.getTitle() for r in results_java_obj]
         text = '\n'.join(results)
     except Py4JNetworkError:
         text = 'DocFetcher не запущен'
