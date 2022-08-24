@@ -15,6 +15,7 @@ from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.dispatcher import FSMContext
 
 from unpack import get_date
+from user_settings_handler import get_globals_from_disk, write_globals_to_disk
 from config import TG_KEY, TASKS_ROOT, WHITELIST
 import globals
 
@@ -24,20 +25,29 @@ dp = Dispatcher(telegram_bot, storage=MemoryStorage())
 button_names = {'create_task': 'Создать задание',
                 'verbose_off': '⬜ Подробный вывод',
                 'verbose_on': '☑ Подробный вывод',
-                'prohibitions': 'Запреты и аресты'
-                }
+                'prohibitions_off': '⬜ Запреты и аресты',
+                'prohibitions_on': '☑ Запреты и аресты',
+}
 
 
-kbd1 = types.ReplyKeyboardMarkup(resize_keyboard=True)
-kbd1.row(button_names['create_task'], button_names['verbose_off'], button_names['prohibitions'])
-kbd2 = types.ReplyKeyboardMarkup(resize_keyboard=True)
-kbd2.row(button_names['create_task'], button_names['verbose_on'], button_names['prohibitions'])
+kbd_voff_poff = types.ReplyKeyboardMarkup(resize_keyboard=True)
+kbd_voff_poff.row(button_names['create_task'], button_names['verbose_off'], button_names['prohibitions_off'])
+kbd_von_poff = types.ReplyKeyboardMarkup(resize_keyboard=True)
+kbd_von_poff.row(button_names['create_task'], button_names['verbose_on'], button_names['prohibitions_off'])
+kbd_voff_pon = types.ReplyKeyboardMarkup(resize_keyboard=True)
+kbd_voff_pon.row(button_names['create_task'], button_names['verbose_off'], button_names['prohibitions_on'])
+kbd_von_pon = types.ReplyKeyboardMarkup(resize_keyboard=True)
+kbd_von_pon.row(button_names['create_task'], button_names['verbose_on'], button_names['prohibitions_on'])
 
 
 def get_kbd():
     if globals.VERBOSE:
-        return kbd2
-    return kbd1
+        if globals.PROHIBITIONS:
+            return kbd_von_pon
+        return kbd_von_poff
+    if globals.PROHIBITIONS:
+        return kbd_voff_pon
+    return kbd_voff_poff
 
 
 def extract_cad_nums(text):
@@ -90,14 +100,33 @@ async def send_multipart_msg(user_id, text):
 @check_whitelist
 async def toggle_verbose(message: types.Message, *args, **kwargs):
     globals.VERBOSE = not globals.VERBOSE
+    write_globals_to_disk()
     text = button_names['verbose_on'][2:] + (' ВКЛ' if globals.VERBOSE else ' ВЫКЛ')
     await telegram_bot.send_message(message.from_user.id, text, reply_markup=get_kbd(), parse_mode="HTML")
+
+
+@dp.message_handler(Text(endswith=button_names['prohibitions_on'][2:]))
+@check_whitelist
+async def toggle_prohibitons(message: types.Message, *args, **kwargs):
+    globals.PROHIBITIONS = not globals.PROHIBITIONS
+    write_globals_to_disk()
+    text = button_names['prohibitions_on'][2:] + (' ВКЛ' if globals.VERBOSE else ' ВЫКЛ')
+    await telegram_bot.send_message(message.from_user.id, text, reply_markup=get_kbd(), parse_mode="HTML")
+    # try:
+    #     results_java_obj = docfetcher_search(f'запрет арест')
+    #     results = [r.getTitle() for r in results_java_obj]
+    #     text = '\n'.join(results)
+    # except Py4JNetworkError:
+    #     text = 'DocFetcher не запущен'
+    #
+    # await send_multipart_msg(message.from_user.id, text)
 
 
 @dp.message_handler(Text(equals=button_names['create_task']))
 @check_whitelist
 async def create_task(message: types.Message, *args, **kwargs):
-    text = 'Введите название каталога'
+    """Создание простого задания, стадия 1: Предлагаем ввести имя каталога"""
+    text = f"ЗАДАНИЕ{' (Запреты и аресты)' if globals.PROHIBITIONS else ''}: Введите название каталога"
     await TaskCreation.task_naming.set()
     await telegram_bot.send_message(message.from_user.id, text, reply_markup=get_kbd(), parse_mode="HTML")
 
@@ -105,6 +134,7 @@ async def create_task(message: types.Message, *args, **kwargs):
 @dp.message_handler(state=TaskCreation.task_naming)
 @check_whitelist
 async def input_task_name(message: types.Message, state: FSMContext,  *args, **kwargs):
+    """Создание простого задания, стадия 2: Проверяем валидность имени и предлагаем ввести кадастровые номера"""
     dirname = message.text.strip()
     forbidden_chars = '/\:*?«<>|'
     if any([ch in dirname for ch in forbidden_chars]):
@@ -114,18 +144,20 @@ async def input_task_name(message: types.Message, state: FSMContext,  *args, **k
     else:
         await state.update_data(dirname=dirname)
         await TaskCreation.input_cad_nums.set()
-        text = f"Введите кадастровые номера"
+        text = f"ЗАДАНИЕ{' (Запреты и аресты)' if globals.PROHIBITIONS else ''}: Введите кадастровые номера"
     await telegram_bot.send_message(message.from_user.id, text, reply_markup=get_kbd(), parse_mode="HTML")
 
 
 @dp.message_handler(state=TaskCreation.input_cad_nums)
 @check_whitelist
 async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kwargs):
+    """Создание простого задания, стадия 3: Для каждого из найденных номеров копируем файлы в созданную папку и отправляем отчет"""
     found_cad_nums = extract_cad_nums(message.text)
     try:
         if found_cad_nums:
             found, years_count = {}, {}
-            not_found, text, n_copied, cn_dates_and_sizes = [], '', 0, []
+            not_found, n_copied, cn_dates_and_sizes = [], 0, []
+            text = 'ЗАПРЕТЫ И АРЕСТЫ\n' if globals.PROHIBITIONS else ''
             type2_files = get_type2_files_set()
             for cad_num in found_cad_nums:
                 results = docfetcher_search(f'"{cad_num}"')
@@ -139,8 +171,11 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
                     text += f'{cad_num}\n'
                 text += '</code>\n'
             else:
-                text = 'Все номера найдены в базe\n'
+                if not globals.PROHIBITIONS:  # в режиме Запеты и аресты данная информация излишня
+                    text += 'Все номера найдены в базe\n'
+
             if found:
+                prohibitions = {f.getPathStr() for f in docfetcher_search(f'запрет арест')} if globals.PROHIBITIONS else {}
                 state_data = await state.get_data()
                 task_path = os.path.join(TASKS_ROOT, state_data['dirname'])
                 if not os.path.exists(task_path):
@@ -151,6 +186,8 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
 
                 for cad_num in found:
                     for file in found[cad_num]:
+                        if globals.PROHIBITIONS and file.getPathStr() not in prohibitions:  # если включен режим "Запреты и аресты", то пропускаем все файлы, где нет запретов/арестов
+                            continue
                         print('Обрабатывается файл', file.getPathStr())
                         try:
                             ext_date = get_date(file.getPathStr())
@@ -196,22 +233,12 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
     await state.finish()
 
 
-@dp.message_handler(Text(equals=button_names['prohibitions']))
-@check_whitelist
-async def show_prohibitons(message: types.Message, *args, **kwargs):
-    try:
-        results_java_obj = docfetcher_search(f'запрет арест')
-        results = [r.getTitle() for r in results_java_obj]
-        text = '\n'.join(results)
-    except Py4JNetworkError:
-        text = 'DocFetcher не запущен'
-
-    await send_multipart_msg(message.from_user.id, text)
 
 
 @dp.message_handler()
 @check_whitelist
-async def parce_cad_nums(message: types.Message, **kwargs):
+async def default_input(message: types.Message, **kwargs):
+    """Стандартный обработчик сообщений - ищет в сообщении кадастровые номера и сообщает есть ли в индексе файлы с таким номером в теле"""
     found_cad_nums = extract_cad_nums(message.text)
     text = ''
     try:
@@ -288,4 +315,5 @@ def docfetcher_search(query, port=28834):
 
 if __name__ == '__main__':
     # loop = asyncio.get_event_loop()
+    get_globals_from_disk()
     executor.start_polling(dp, skip_updates=True)
