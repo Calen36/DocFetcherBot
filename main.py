@@ -15,6 +15,8 @@ from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.dispatcher import FSMContext
 
 from unpack import get_date
+from markups import button_names, get_kbd
+from xml_parcing import check_cession
 from user_settings_handler import get_globals_from_disk, write_globals_to_disk
 from config import TG_KEY, TASKS_ROOT, WHITELIST
 import globals
@@ -22,32 +24,7 @@ import globals
 telegram_bot = Bot(token=TG_KEY)
 dp = Dispatcher(telegram_bot, storage=MemoryStorage())
 
-button_names = {'create_task': 'Создать задание',
-                'verbose_off': '⬜ Подробный вывод',
-                'verbose_on': '☑ Подробный вывод',
-                'prohibitions_off': '⬜ Запреты и аресты',
-                'prohibitions_on': '☑ Запреты и аресты',
-}
 
-
-kbd_voff_poff = types.ReplyKeyboardMarkup(resize_keyboard=True)
-kbd_voff_poff.row(button_names['create_task'], button_names['verbose_off'], button_names['prohibitions_off'])
-kbd_von_poff = types.ReplyKeyboardMarkup(resize_keyboard=True)
-kbd_von_poff.row(button_names['create_task'], button_names['verbose_on'], button_names['prohibitions_off'])
-kbd_voff_pon = types.ReplyKeyboardMarkup(resize_keyboard=True)
-kbd_voff_pon.row(button_names['create_task'], button_names['verbose_off'], button_names['prohibitions_on'])
-kbd_von_pon = types.ReplyKeyboardMarkup(resize_keyboard=True)
-kbd_von_pon.row(button_names['create_task'], button_names['verbose_on'], button_names['prohibitions_on'])
-
-
-def get_kbd():
-    if globals.VERBOSE:
-        if globals.PROHIBITIONS:
-            return kbd_von_pon
-        return kbd_von_poff
-    if globals.PROHIBITIONS:
-        return kbd_voff_pon
-    return kbd_voff_poff
 
 
 def extract_cad_nums(text):
@@ -109,24 +86,29 @@ async def toggle_verbose(message: types.Message, *args, **kwargs):
 @check_whitelist
 async def toggle_prohibitons(message: types.Message, *args, **kwargs):
     globals.PROHIBITIONS = not globals.PROHIBITIONS
+    if globals.PROHIBITIONS and globals.CESSION:
+        globals.CESSION = False
     write_globals_to_disk()
-    text = button_names['prohibitions_on'][2:] + (' ВКЛ' if globals.VERBOSE else ' ВЫКЛ')
+    text = button_names['prohibitions_on'][2:] + (' ВКЛ' if globals.PROHIBITIONS else ' ВЫКЛ')
     await telegram_bot.send_message(message.from_user.id, text, reply_markup=get_kbd(), parse_mode="HTML")
-    # try:
-    #     results_java_obj = docfetcher_search(f'запрет арест')
-    #     results = [r.getTitle() for r in results_java_obj]
-    #     text = '\n'.join(results)
-    # except Py4JNetworkError:
-    #     text = 'DocFetcher не запущен'
-    #
-    # await send_multipart_msg(message.from_user.id, text)
+
+
+@dp.message_handler(Text(endswith=button_names['cession_on'][2:]))
+@check_whitelist
+async def toggle_cession(message: types.Message, *args, **kwargs):
+    globals.CESSION = not globals.CESSION
+    if globals.CESSION and globals.PROHIBITIONS:
+        globals.PROHIBITIONS = False
+    write_globals_to_disk()
+    text = button_names['cession_on'][2:] + (' ВКЛ' if globals.CESSION else ' ВЫКЛ')
+    await telegram_bot.send_message(message.from_user.id, text, reply_markup=get_kbd(), parse_mode="HTML")
 
 
 @dp.message_handler(Text(equals=button_names['create_task']))
 @check_whitelist
 async def create_task(message: types.Message, *args, **kwargs):
     """Создание простого задания, стадия 1: Предлагаем ввести имя каталога"""
-    text = f"ЗАДАНИЕ{' (Запреты и аресты)' if globals.PROHIBITIONS else ''}: Введите название каталога"
+    text = f"ЗАДАНИЕ{' (Запреты и аресты)' if globals.PROHIBITIONS else ''}{' (Передача собственности)' if globals.CESSION else ''}: Введите название каталога"
     await TaskCreation.task_naming.set()
     await telegram_bot.send_message(message.from_user.id, text, reply_markup=get_kbd(), parse_mode="HTML")
 
@@ -144,7 +126,7 @@ async def input_task_name(message: types.Message, state: FSMContext,  *args, **k
     else:
         await state.update_data(dirname=dirname)
         await TaskCreation.input_cad_nums.set()
-        text = f"ЗАДАНИЕ{' (Запреты и аресты)' if globals.PROHIBITIONS else ''}: Введите кадастровые номера"
+        text = f"ЗАДАНИЕ{' (Запреты и аресты)' if globals.PROHIBITIONS else ''}{' (Передача собственности)' if globals.CESSION else ''}: Введите кадастровые номера"
     await telegram_bot.send_message(message.from_user.id, text, reply_markup=get_kbd(), parse_mode="HTML")
 
 
@@ -158,11 +140,15 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
             found, years_count = {}, {}
             not_found, n_copied, cn_dates_and_sizes = [], 0, []
             text = 'ЗАПРЕТЫ И АРЕСТЫ\n' if globals.PROHIBITIONS else ''
+            if globals.CESSION:
+                text += 'ПЕРЕДАЧА СОБСТВЕННОСТИ\n'
             type2_files = get_type2_files_set()
             for cad_num in found_cad_nums:
                 results = docfetcher_search(f'"{cad_num}"')
                 if results:
                     found[cad_num] = [r for r in results if r.getType() == 'xml']
+                    if globals.CESSION:
+                        found[cad_num] = [r for r in found[cad_num] if check_cession(r.getPathStr())]
                 else:
                     not_found.append(cad_num)
             if not_found:
@@ -173,6 +159,11 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
             else:
                 if not globals.PROHIBITIONS:  # в режиме Запеты и аресты данная информация излишня
                     text += 'Все номера найдены в базe\n'
+
+            if globals.CESSION:
+                found = {k: v for k, v in found.items() if v}
+                if not found:
+                    text += 'Повторяющихся дат регистрации не обнаружено\n'
 
             if found:
                 prohibitions = {f.getPathStr() for f in docfetcher_search(f'запрет арест')} if globals.PROHIBITIONS else {}
