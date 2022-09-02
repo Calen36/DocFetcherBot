@@ -9,43 +9,19 @@ button_names = {'create_task': 'Создать задание',
                 'prohibitions_on': '☑ Запреты и аресты',
                 'cession_off': '⬜ Передача собственности',
                 'cession_on': '☑ Передача собственности',
+                'type_1_only_on': '☑ Только 1го типа',
+                'type_1_only_off': '⬜ Только 1го типа',
+                'type_2_only_on': '☑ Только 2го типа',
+                'type_2_only_off': '⬜ Только 2го типа',
                 }
 
 
-kbd_voff_poff_coff = types.ReplyKeyboardMarkup(resize_keyboard=True)
-kbd_voff_poff_coff.row(button_names['create_task'])
-kbd_voff_poff_coff.row(button_names['verbose_off'], button_names['prohibitions_off'], button_names['cession_off'])
-
-kbd_voff_pon_coff = types.ReplyKeyboardMarkup(resize_keyboard=True)
-kbd_voff_pon_coff.row(button_names['create_task'])
-kbd_voff_pon_coff.row(button_names['verbose_off'], button_names['prohibitions_on'], button_names['cession_off'])
-
-kbd_voff_poff_con = types.ReplyKeyboardMarkup(resize_keyboard=True)
-kbd_voff_poff_con.row(button_names['create_task'])
-kbd_voff_poff_con.row(button_names['verbose_off'], button_names['prohibitions_off'], button_names['cession_on'])
-
-kbd_von_poff_coff = types.ReplyKeyboardMarkup(resize_keyboard=True)
-kbd_von_poff_coff.row(button_names['create_task'])
-kbd_von_poff_coff.row(button_names['verbose_on'], button_names['prohibitions_off'], button_names['cession_off'])
-
-kbd_von_pon_coff = types.ReplyKeyboardMarkup(resize_keyboard=True)
-kbd_von_pon_coff.row(button_names['create_task'])
-kbd_von_pon_coff.row(button_names['verbose_on'], button_names['prohibitions_on'], button_names['cession_off'])
-
-kbd_von_poff_con = types.ReplyKeyboardMarkup(resize_keyboard=True)
-kbd_von_poff_con.row(button_names['create_task'])
-kbd_von_poff_con.row(button_names['verbose_on'], button_names['prohibitions_off'], button_names['cession_on'])
-
-
 def get_kbd():
-    if globals.VERBOSE and globals.PROHIBITIONS:
-        return kbd_von_pon_coff
-    elif globals.VERBOSE and globals.CESSION:
-        return kbd_von_poff_con
-    elif globals.VERBOSE:
-        return kbd_von_poff_coff
-    elif globals.PROHIBITIONS:
-        return kbd_voff_pon_coff
-    elif globals.CESSION:
-        return kbd_voff_poff_con
-    return kbd_voff_poff_coff
+    kbd = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    kbd.row(button_names['create_task'])
+    kbd.row(button_names['verbose_on'] if globals.VERBOSE else button_names['verbose_off'],
+            button_names['prohibitions_on'] if globals.PROHIBITIONS else button_names['prohibitions_off'],
+            button_names['cession_on'] if globals.CESSION else button_names['cession_off'])
+    kbd.row(button_names['type_1_only_on'] if globals.TYPE_1_ONLY else button_names['type_1_only_off'],
+            button_names['type_2_only_on'] if globals.TYPE_2_ONLY else button_names['type_2_only_off'])
+    return kbd

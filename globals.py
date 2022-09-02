@@ -1,3 +1,5 @@
 VERBOSE = False
 PROHIBITIONS = False
 CESSION = False
+TYPE_1_ONLY = False
+TYPE_2_ONLY = False

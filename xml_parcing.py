@@ -11,6 +11,8 @@ def fix_ns(treeroot):
 
 
 def check_cession(extract_path):
+    """Выявляем выписки, в которых один собственник продал участок другому в тот же день, когда участок был передан ему
+     в собственность. Делаем это путем поиска одинаковых дат регистрации собственности"""
     treeroot = fix_ns(ElementTree.parse(extract_path).getroot())
     reg_dates = [d.text.strip() for d in treeroot.iter('RegDate')]
     if len(reg_dates) > len(set(reg_dates)):

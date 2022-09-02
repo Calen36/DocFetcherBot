@@ -25,8 +25,6 @@ telegram_bot = Bot(token=TG_KEY)
 dp = Dispatcher(telegram_bot, storage=MemoryStorage())
 
 
-
-
 def extract_cad_nums(text):
     found_cad_nums = re.findall(r"\d{2}:\d{2}:\d{7}:\d{1,5}", text)
     return sorted(set(found_cad_nums))
@@ -102,6 +100,29 @@ async def toggle_cession(message: types.Message, *args, **kwargs):
     write_globals_to_disk()
     text = button_names['cession_on'][2:] + (' ВКЛ' if globals.CESSION else ' ВЫКЛ')
     await telegram_bot.send_message(message.from_user.id, text, reply_markup=get_kbd(), parse_mode="HTML")
+
+
+@dp.message_handler(Text(endswith=button_names['type_1_only_on'][2:]))
+@check_whitelist
+async def toggle_type1_only(message: types.Message, *args, **kwargs):
+    globals.TYPE_1_ONLY = not globals.TYPE_1_ONLY
+    if globals.TYPE_1_ONLY:
+        globals.TYPE_2_ONLY = False
+    write_globals_to_disk()
+    text = button_names['type_1_only_on'][2:] + (' ВКЛ' if globals.CESSION else ' ВЫКЛ')
+    await telegram_bot.send_message(message.from_user.id, text, reply_markup=get_kbd(), parse_mode="HTML")
+
+
+@dp.message_handler(Text(endswith=button_names['type_2_only_on'][2:]))
+@check_whitelist
+async def toggle_type2_only(message: types.Message, *args, **kwargs):
+    globals.TYPE_2_ONLY = not globals.TYPE_2_ONLY
+    if globals.TYPE_2_ONLY:
+        globals.TYPE_1_ONLY = False
+    write_globals_to_disk()
+    text = button_names['type_2_only_on'][2:] + (' ВКЛ' if globals.CESSION else ' ВЫКЛ')
+    await telegram_bot.send_message(message.from_user.id, text, reply_markup=get_kbd(), parse_mode="HTML")
+
 
 
 @dp.message_handler(Text(equals=button_names['create_task']))
@@ -224,8 +245,6 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
     await state.finish()
 
 
-
-
 @dp.message_handler()
 @check_whitelist
 async def default_input(message: types.Message, **kwargs):
@@ -241,8 +260,19 @@ async def default_input(message: types.Message, **kwargs):
                 if not results_dataset:
                     not_found.append(cad_num)
                 else:
+
                     result_files = [r.getPathStr() for r in results_dataset if r.getType() == 'xml']
+                    initial_len = len(result_files)
+
+                    if globals.TYPE_1_ONLY:
+                        result_files = [r for r in result_files if r not in type2_files]
+                    elif globals.TYPE_2_ONLY:
+                        result_files = [r for r in result_files if r in type2_files]
+                    if len(result_files) != initial_len:
+                        text += f'Файлов исключено из поиска: {initial_len-len(result_files)}'
+
                     types_count = {1: 0, 2: 0}
+
                     for r_file in result_files:
                         if r_file in type2_files:
                             types_count[2] += 1
@@ -254,7 +284,7 @@ async def default_input(message: types.Message, **kwargs):
                         found.append((cad_num, 2, types_count[2]))
 
             if not_found:
-                text = 'Не найдены в базе:\n<code>'
+                text += 'Не найдены в базе:\n<code>'
                 for x in not_found:
                     text += f'{x}\n'
                 text += '</code>'
