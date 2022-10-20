@@ -30,6 +30,11 @@ def extract_cad_nums(text):
     return sorted(set(found_cad_nums))
 
 
+def extract_cad_raion(text):
+    found_cad_raions = re.findall(r"\d{2}:\d{2}:$", text.strip())
+    return sorted(set(found_cad_raions))
+
+
 def get_type2_files_set():
     type2_dataset = docfetcher_search(
         f'"Выписка из Единого государственного реестра недвижимости о переходе прав на объект недвижимости"')
@@ -156,6 +161,8 @@ async def input_task_name(message: types.Message, state: FSMContext,  *args, **k
 async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kwargs):
     """Создание простого задания, стадия 3: Для каждого из найденных номеров копируем файлы в созданную папку и отправляем отчет"""
     found_cad_nums = extract_cad_nums(message.text)
+    # если кадастровых номеров не найдено - ищем кадастровые районы
+    found_cad_nums = found_cad_nums if found_cad_nums else extract_cad_raion(message.text)
     try:
         if found_cad_nums:
             found, years_count = {}, {}
@@ -250,6 +257,8 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
 async def default_input(message: types.Message, **kwargs):
     """Стандартный обработчик сообщений - ищет в сообщении кадастровые номера и сообщает есть ли в индексе файлы с таким номером в теле"""
     found_cad_nums = extract_cad_nums(message.text)
+    found_cad_nums = found_cad_nums if found_cad_nums else extract_cad_raion(message.text)
+    print('!!!!', found_cad_nums)
     text = ''
     try:
         if found_cad_nums:
