@@ -25,17 +25,20 @@ telegram_bot = Bot(token=TG_KEY)
 dp = Dispatcher(telegram_bot, storage=MemoryStorage())
 
 
-def extract_cad_nums(text):
+def extract_cad_nums(text: str) -> list:
+    """Возвращает все найденные в тексте кадастровые номера"""
     found_cad_nums = re.findall(r"\d{2}:\d{2}:\d{7}:\d{1,5}", text)
     return sorted(set(found_cad_nums))
 
 
-def extract_cad_raion(text):
+def extract_cad_raion(text: str) -> list:
+    """Возвращает все найденые в тексте кадастровые районы (район должен быть прописан отдельно, не в составе номера)"""
     found_cad_raions = re.findall(r"\d{2}:\d{2}:$", text.strip())
     return sorted(set(found_cad_raions))
 
 
-def get_type2_files_set():
+def get_type2_files_set() -> set:
+    """Возвращает полные имена файлов для всех выписок 2го типа в индексе"""
     type2_dataset = docfetcher_search(
         f'"Выписка из Единого государственного реестра недвижимости о переходе прав на объект недвижимости"')
     result = {r.getPathStr() for r in type2_dataset if r.getType() == 'xml'}
@@ -144,6 +147,8 @@ async def create_task(message: types.Message, *args, **kwargs):
 async def input_task_name(message: types.Message, state: FSMContext,  *args, **kwargs):
     """Создание простого задания, стадия 2: Проверяем валидность имени и предлагаем ввести кадастровые номера"""
     dirname = message.text.strip()
+
+    # проверяем что в имени папки нет недопустимых символов
     forbidden_chars = '/\:*?«<>|'
     if any([ch in dirname for ch in forbidden_chars]):
         chars = [ch for ch in forbidden_chars if ch in dirname]
@@ -163,6 +168,7 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
     found_cad_nums = extract_cad_nums(message.text)
     # если кадастровых номеров не найдено - ищем кадастровые районы
     found_cad_nums = found_cad_nums if found_cad_nums else extract_cad_raion(message.text)
+
     try:
         if found_cad_nums:
             found, years_count = {}, {}
@@ -170,16 +176,23 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
             text = 'ЗАПРЕТЫ И АРЕСТЫ\n' if globals.PROHIBITIONS else ''
             if globals.CESSION:
                 text += 'ПЕРЕДАЧА СОБСТВЕННОСТИ\n'
-            type2_files = get_type2_files_set()
+            type2_files = get_type2_files_set()  # получаем множество полных имен файлов для всех выписок 2го типа в индексе
             for cad_num in found_cad_nums:
                 results = docfetcher_search(f'"{cad_num}"')
                 if results:
                     found[cad_num] = [r for r in results if r.getType() == 'xml']
+                    """Если поставлены флаги Только 1го типа, Только 2го типа или Передача собственности -
+                    оставляем в найденных только нужные файлы"""
+                    if globals.TYPE_1_ONLY:
+                        found[cad_num] = [r for r in found[cad_num] if r.getPathStr() not in type2_files]
+                    if globals.TYPE_2_ONLY:
+                        found[cad_num] = [r for r in found[cad_num] if r.getPathStr() in type2_files]
                     if globals.CESSION:
                         found[cad_num] = [r for r in found[cad_num] if check_cession(r.getPathStr())]
                 else:
                     not_found.append(cad_num)
-            if not_found:
+
+            if not_found:  # tесли есть кадастровые номера(районы), по которым результаты поиска нулевые
                 text += 'Не найдены в базе:\n<code>'
                 for cad_num in not_found:
                     text += f'{cad_num}\n'
@@ -257,8 +270,7 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
 async def default_input(message: types.Message, **kwargs):
     """Стандартный обработчик сообщений - ищет в сообщении кадастровые номера и сообщает есть ли в индексе файлы с таким номером в теле"""
     found_cad_nums = extract_cad_nums(message.text)
-    found_cad_nums = found_cad_nums if found_cad_nums else extract_cad_raion(message.text)
-    print('!!!!', found_cad_nums)
+    # found_cad_nums = found_cad_nums if found_cad_nums else extract_cad_raion(message.text)
     text = ''
     try:
         if found_cad_nums:
@@ -269,7 +281,6 @@ async def default_input(message: types.Message, **kwargs):
                 if not results_dataset:
                     not_found.append(cad_num)
                 else:
-
                     result_files = [r.getPathStr() for r in results_dataset if r.getType() == 'xml']
                     initial_len = len(result_files)
 
