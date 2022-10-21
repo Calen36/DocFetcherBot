@@ -117,7 +117,7 @@ async def toggle_type1_only(message: types.Message, *args, **kwargs):
     if globals.TYPE_1_ONLY:
         globals.TYPE_2_ONLY = False
     write_globals_to_disk()
-    text = button_names['type_1_only_on'][2:] + (' ВКЛ' if globals.CESSION else ' ВЫКЛ')
+    text = button_names['type_1_only_on'][2:] + (' ВКЛ' if globals.TYPE_1_ONLY else ' ВЫКЛ')
     await telegram_bot.send_message(message.from_user.id, text, reply_markup=get_kbd(), parse_mode="HTML")
 
 
@@ -128,7 +128,7 @@ async def toggle_type2_only(message: types.Message, *args, **kwargs):
     if globals.TYPE_2_ONLY:
         globals.TYPE_1_ONLY = False
     write_globals_to_disk()
-    text = button_names['type_2_only_on'][2:] + (' ВКЛ' if globals.CESSION else ' ВЫКЛ')
+    text = button_names['type_2_only_on'][2:] + (' ВКЛ' if globals.TYPE_2_ONLY else ' ВЫКЛ')
     await telegram_bot.send_message(message.from_user.id, text, reply_markup=get_kbd(), parse_mode="HTML")
 
 
