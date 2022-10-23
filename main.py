@@ -33,7 +33,7 @@ def extract_cad_nums(text: str) -> list:
 
 def extract_cad_raion(text: str) -> list:
     """Возвращает все найденые в тексте кадастровые районы (район должен быть прописан отдельно, не в составе номера)"""
-    found_cad_raions = re.findall(r"\d{2}:\d{2}:$", text.strip())
+    found_cad_raions = re.findall(r"\d{2}:\d{2}:", text.strip())
     return sorted(set(found_cad_raions))
 
 
@@ -132,6 +132,17 @@ async def toggle_type2_only(message: types.Message, *args, **kwargs):
     await telegram_bot.send_message(message.from_user.id, text, reply_markup=get_kbd(), parse_mode="HTML")
 
 
+@dp.message_handler(Text(endswith=button_names['date_dirs_on'][2:]))
+@check_whitelist
+async def toggle_date_dirs(message: types.Message, *args, **kwargs):
+    globals.DATE_DIRS = not globals.DATE_DIRS
+    write_globals_to_disk()
+    if globals.DATE_DIRS:
+        text = 'В заданиях будут создавться каталоги для кадой отдельной даты'
+    else:
+        text = 'В заданиях будут создаваться каталоги по годам'
+    await telegram_bot.send_message(message.from_user.id, text, reply_markup=get_kbd(), parse_mode="HTML")
+
 
 @dp.message_handler(Text(equals=button_names['create_task']))
 @check_whitelist
@@ -223,6 +234,8 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
                         print('Обрабатывается файл', file.getPathStr())
                         try:
                             ext_date = get_date(file.getPathStr())
+                            if not globals.DATE_DIRS:
+                                ext_date = ext_date[:4]
                             file_size = os.path.getsize(file.getPathStr())
                             ext_type = 2 if file.getPathStr() in type2_files else 1
                             if (cad_num, ext_date, file_size) not in cn_dates_and_sizes:

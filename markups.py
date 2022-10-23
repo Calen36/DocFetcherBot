@@ -13,6 +13,8 @@ button_names = {'create_task': 'Создать задание',
                 'type_1_only_off': '⬜ Только 1го типа',
                 'type_2_only_on': '☑ Только 2го типа',
                 'type_2_only_off': '⬜ Только 2го типа',
+                'date_dirs_on': '☑ Каталог по датам',
+                'date_dirs_off': '⬜ Каталог по датам',
                 }
 
 
@@ -23,5 +25,7 @@ def get_kbd():
             button_names['prohibitions_on'] if globals.PROHIBITIONS else button_names['prohibitions_off'],
             button_names['cession_on'] if globals.CESSION else button_names['cession_off'])
     kbd.row(button_names['type_1_only_on'] if globals.TYPE_1_ONLY else button_names['type_1_only_off'],
-            button_names['type_2_only_on'] if globals.TYPE_2_ONLY else button_names['type_2_only_off'])
+            button_names['type_2_only_on'] if globals.TYPE_2_ONLY else button_names['type_2_only_off'],
+            button_names['date_dirs_on'] if globals.DATE_DIRS else button_names['date_dirs_off'])
+
     return kbd
