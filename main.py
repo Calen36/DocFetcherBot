@@ -178,7 +178,10 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
     """Создание простого задания, стадия 3: Для каждого из найденных номеров копируем файлы в созданную папку и отправляем отчет"""
     found_cad_nums = extract_cad_nums(message.text)
     # если кадастровых номеров не найдено - ищем кадастровые районы
-    found_cad_nums = found_cad_nums if found_cad_nums else extract_cad_raion(message.text)
+    use_cadaster_kvartals = False
+    if not found_cad_nums:
+        use_cadaster_kvartals = True
+        found_cad_nums = extract_cad_raion(message.text)
 
     try:
         if found_cad_nums:
@@ -239,7 +242,8 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
                             file_size = os.path.getsize(file.getPathStr())
                             ext_type = 2 if file.getPathStr() in type2_files else 1
                             if (cad_num, ext_date, file_size) not in cn_dates_and_sizes:
-                                cn_dates_and_sizes.append((cad_num, ext_date, file_size))
+                                if not use_cadaster_kvartals:  # если ищем не уникальные кадастровые номера, а кадастровые кварталы - проверку на уникльность выписок пропускаем
+                                    cn_dates_and_sizes.append((cad_num, ext_date, file_size))
                                 ext_dir_path = os.path.join(task_path, ext_date)
                                 if not os.path.exists(ext_dir_path):
                                     os.makedirs(ext_dir_path)
