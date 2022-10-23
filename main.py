@@ -138,7 +138,7 @@ async def toggle_date_dirs(message: types.Message, *args, **kwargs):
     globals.DATE_DIRS = not globals.DATE_DIRS
     write_globals_to_disk()
     if globals.DATE_DIRS:
-        text = 'В заданиях будут создавться каталоги для кадой отдельной даты'
+        text = 'В заданиях будут создавться каталоги для каждой отдельной даты'
     else:
         text = 'В заданиях будут создаваться каталоги по годам'
     await telegram_bot.send_message(message.from_user.id, text, reply_markup=get_kbd(), parse_mode="HTML")
