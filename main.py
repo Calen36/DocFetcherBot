@@ -182,7 +182,6 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
     if not found_cad_nums:
         use_cadaster_kvartals = True
         found_cad_nums = extract_cad_raion(message.text)
-
     try:
         if found_cad_nums:
             found, years_count = {}, {}
@@ -231,10 +230,11 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
                     text += f'Каталог уже существует:\n<code>{task_path}</code>\n'
 
                 for cad_num in found:
+                    print(f"{cad_num}---Найдено файлов: {len(found[cad_num])}"+"-"*50)
                     for file in found[cad_num]:
                         if globals.PROHIBITIONS and file.getPathStr() not in prohibitions:  # если включен режим "Запреты и аресты", то пропускаем все файлы, где нет запретов/арестов
                             continue
-                        print('Обрабатывается файл', file.getPathStr())
+                        print('  -Файл', file.getPathStr())
                         try:
                             ext_date = get_date(file.getPathStr())
                             if not globals.DATE_DIRS:
@@ -292,7 +292,7 @@ async def default_input(message: types.Message, **kwargs):
     try:
         if found_cad_nums:
             type2_files = get_type2_files_set()
-            found, not_found = [], []
+            found, not_found, files_excluded = [], [], 0
             for cad_num in found_cad_nums:
                 results_dataset = docfetcher_search(f'"{cad_num}"')
                 if not results_dataset:
@@ -306,7 +306,7 @@ async def default_input(message: types.Message, **kwargs):
                     elif globals.TYPE_2_ONLY:
                         result_files = [r for r in result_files if r in type2_files]
                     if len(result_files) != initial_len:
-                        text += f'Файлов исключено из поиска: {initial_len-len(result_files)}'
+                        files_excluded += (initial_len-len(result_files))
 
                     types_count = {1: 0, 2: 0}
 
@@ -319,6 +319,8 @@ async def default_input(message: types.Message, **kwargs):
                         found.append((cad_num, 1, types_count[1]))
                     if types_count[2]:
                         found.append((cad_num, 2, types_count[2]))
+            if files_excluded:
+                text += f'Файлов исключено из поиска: {files_excluded}\n'
 
             if not_found:
                 text += 'Не найдены в базе:\n<code>'
@@ -372,6 +374,5 @@ def docfetcher_search(query, port=28834):
 
 
 if __name__ == '__main__':
-    # loop = asyncio.get_event_loop()
     get_globals_from_disk()
     executor.start_polling(dp, skip_updates=True)
