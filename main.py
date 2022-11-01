@@ -233,7 +233,7 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
                     DEBUGTEXT = f">>>> DEBUG <<<<\n{cad_num}---Найдено файлов: {len(found[cad_num])}\n"
                     print(f"{cad_num} Найдено файлов: {len(found[cad_num])}"+"-"*50)
                     for file in found[cad_num]:
-                        DEBUGTEXT += f"__{file.getPathStr()}\n"
+                        DEBUGTEXT += f"🔵{file.getPathStr()}\n"
                         if globals.PROHIBITIONS and file.getPathStr() not in prohibitions:  # если включен режим "Запреты и аресты", то пропускаем все файлы, где нет запретов/арестов
                             continue
                         print('  -Файл', file.getPathStr())
@@ -263,14 +263,14 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
                                         years_count[year] = [(cad_num, ext_type)]
                                 else:
                                     print('\tКопирование пропущено, файл c таким именем уже существует:', target_filename)
-                                    DEBUGTEXT += f"____имя: {target_filename}\n"
+                                    DEBUGTEXT += f"🞉имя: {target_filename}\n"
                             else:
                                 print('\tОбработка пропущена, файл с таким содерижмым уже существует')
-                                DEBUGTEXT += f"____содержимое: {cad_num}, {ext_date}, {file_size}\n"
+                                DEBUGTEXT += f"🞉содержимое: {cad_num}, {ext_date}, {file_size}\n"
 
                         except FileNotFoundError as ex:
                             print('\tФайл не доступен:', ex)
-                        await telegram_bot.send_message(message.from_user.id, text=DEBUGTEXT)
+                    await telegram_bot.send_message(message.from_user.id, text=DEBUGTEXT)
                 text += f'Скопирован{"ы" if n_copied != 1 else ""} {n_copied} файл{"а" if n_copied%10 in (2,3,4) else ""}{"ов" if n_copied%10 in (5,6,7,8,9,0) else ""}\n'
                 if years_count:
                     text += f'По годам:<code>\n'
