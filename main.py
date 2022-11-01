@@ -270,7 +270,7 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
 
                         except FileNotFoundError as ex:
                             print('\tФайл не доступен:', ex)
-                        # await telegram_bot.send_message(message.from_user.id, text=DEBUGTEXT)
+                        await telegram_bot.send_message(message.from_user.id, text=DEBUGTEXT)
                 text += f'Скопирован{"ы" if n_copied != 1 else ""} {n_copied} файл{"а" if n_copied%10 in (2,3,4) else ""}{"ов" if n_copied%10 in (5,6,7,8,9,0) else ""}\n'
                 if years_count:
                     text += f'По годам:<code>\n'
