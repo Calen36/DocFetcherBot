@@ -13,23 +13,29 @@ def fix_ns(treeroot):
 def get_date(extract_path):
     try:
         treeroot = fix_ns(ElementTree.parse(extract_path).getroot())
-        target = list(treeroot.iter('Sender'))[0]
+
+        target = list(treeroot.iter('Sender'))
         if target:
-            target = target[0]
-            date = target.get('Date_Upload')
+            date = target[0].get('Date_Upload')
             if date:
                 return date
         target = list(treeroot.iter('DeclarAttribute'))
         if target:
-            target = target[0]
-            date = target.get('ExtractDate')
-            if date:
+            date = target[0].get('ExtractDate')
+            if isinstance(date, str):
                 date = '-'.join(reversed(date.split('.')))
                 return date
         target = treeroot.find('./details_statement/group_top_requisites/date_formation')
         if target is not None and target.text:
             return target.text
+
         return '0000-00-00'
     except Exception as ex:
         print(f'Ошибка получения даты\n\t{extract_path}\n\t{ex}')
         return '0000-00-00'
+
+
+if __name__ == '__main__':
+    filename = '/home/don_durito/TMP/23-02-0000000-1_КРТ.xml'
+
+    print(get_date(filename))
