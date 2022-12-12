@@ -18,16 +18,16 @@ def get_date(extract_path):
         if target:
             date = target[0].get('Date_Upload')
             if date:
-                return date
+                return date[:10]
         target = list(treeroot.iter('DeclarAttribute'))
         if target:
             date = target[0].get('ExtractDate')
             if isinstance(date, str):
                 date = '-'.join(reversed(date.split('.')))
-                return date
+                return date[:10]
         target = treeroot.find('./details_statement/group_top_requisites/date_formation')
         if target is not None and target.text:
-            return target.text
+            return target.text[:10]
 
         return '0000-00-00'
     except Exception as ex:
@@ -36,6 +36,6 @@ def get_date(extract_path):
 
 
 if __name__ == '__main__':
-    filename = '/home/don_durito/TMP/23-02-0000000-1_КРТ.xml'
+    filename = '/home/don_durito/TMP/23-02-1104040-3_ПРМ_(c)Субъект РФ-КК.xml'
 
     print(get_date(filename))
