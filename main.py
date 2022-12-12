@@ -1,6 +1,7 @@
 import re
 import os
 import shutil
+from datetime import datetime
 
 from py4j.java_gateway import JavaGateway, GatewayParameters
 from py4j.java_gateway import java_import
@@ -23,6 +24,7 @@ import globals
 
 telegram_bot = Bot(token=TG_KEY)
 dp = Dispatcher(telegram_bot, storage=MemoryStorage())
+
 
 
 def extract_cad_nums(text: str) -> list:
@@ -191,7 +193,10 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
                 text += 'ПЕРЕДАЧА СОБСТВЕННОСТИ\n'
             type2_files = get_type2_files_set()  # получаем множество полных имен файлов для всех выписок 2го типа в индексе
             for cad_num in found_cad_nums:
+                search_start_time = datetime.now()
                 results = docfetcher_search(f'"{cad_num}"')
+                search_duration = datetime.now() - search_start_time
+                print(f'Время на поиск: {search_duration.seconds} с. Запрос: "{cad_num}"')
                 if results:
                     found[cad_num] = [r for r in results if r.getType() == 'xml']
                     """Если поставлены флаги Только 1го типа, Только 2го типа или Передача собственности -
