@@ -26,6 +26,9 @@ def get_date(extract_path):
             if date:
                 date = '-'.join(reversed(date.split('.')))
                 return date
+        target = treeroot.find('./details_statement/group_top_requisites/date_formation')
+        if target is not None and target.text:
+            return target.text
         return '0000-00-00'
     except Exception as ex:
         print(f'Ошибка получения даты\n\t{extract_path}\n\t{ex}')
