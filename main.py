@@ -174,10 +174,22 @@ async def input_task_name(message: types.Message, state: FSMContext,  *args, **k
     await telegram_bot.send_message(message.from_user.id, text, reply_markup=get_kbd(), parse_mode="HTML")
 
 
+class Timer:
+    def __init__(self):
+        self.time = datetime.now()
+
+    def bip(self, message=''):
+        now = datetime.now()
+        delta = now - self.time
+        print(f">> {delta.seconds} > {message}")
+        self.time = now
+
+
 @dp.message_handler(state=TaskCreation.input_cad_nums)
 @check_whitelist
 async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kwargs):
     """Создание простого задания, стадия 3: Для каждого из найденных номеров копируем файлы в созданную папку и отправляем отчет"""
+    timer = Timer()
     found_cad_nums = extract_cad_nums(message.text)
     # если кадастровых номеров не найдено - ищем кадастровые районы
     use_cadaster_kvartals = False
@@ -193,10 +205,10 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
                 text += 'ПЕРЕДАЧА СОБСТВЕННОСТИ\n'
             type2_files = get_type2_files_set()  # получаем множество полных имен файлов для всех выписок 2го типа в индексе
             for cad_num in found_cad_nums:
-                search_start_time = datetime.now()
+                # search_start_time = datetime.now()
                 results = docfetcher_search(f'"{cad_num}"')
-                search_duration = datetime.now() - search_start_time
-                print(f'Время на поиск: {search_duration.seconds} с. Запрос: "{cad_num}"')
+                # search_duration = datetime.now() - search_start_time
+                # print(f'Время на поиск: {search_duration.seconds} с. Запрос: "{cad_num}"')
                 if results:
                     found[cad_num] = [r for r in results if r.getType() == 'xml']
                     """Если поставлены флаги Только 1го типа, Только 2го типа или Передача собственности -
@@ -234,15 +246,19 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
                 else:
                     text += f'Каталог уже существует:\n<code>{task_path}</code>\n'
 
+                timer.bip('starting')
                 for cad_num in found:
+                    timer.bip('new cad_num')
                     DEBUGTEXT = f">>>> DEBUG <<<<\n{cad_num}---Найдено файлов: {len(found[cad_num])}\n"
                     print(f"{cad_num} Найдено файлов: {len(found[cad_num])}"+"-"*50)
                     for file in found[cad_num]:
+                        timer.bip('new_file')
                         DEBUGTEXT += f"🔵{file.getPathStr()}\n"
                         if globals.PROHIBITIONS and file.getPathStr() not in prohibitions:  # если включен режим "Запреты и аресты", то пропускаем все файлы, где нет запретов/арестов
                             continue
                         print('  -Файл', file.getPathStr())
                         try:
+                            timer.bip('try')
                             ext_date = get_date(file.getPathStr())
                             if not globals.DATE_DIRS:  # если пользователь не выбрал опцию Каталоги по Датам, то дата сокращаестся до года (и, соответственно выписки кладутся в подпапки по годам, а не по отдельным датам)
                                 ext_date = ext_date[:4]
@@ -258,9 +274,11 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
                                 # конечное расположение файла выписки
                                 target_filename = os.path.join(ext_dir_path, file.getFilename())
                                 if not os.path.exists(target_filename):
+                                    timer.bip('start copy')
                                     shutil.copy(file.getPathStr(), ext_dir_path)
                                     print('\tСкопировано. Новое расположение:', ext_dir_path)
                                     n_copied += 1
+                                    timer.bip('end copy')
                                     year = ext_date[:4]
                                     if year in years_count:
                                         years_count[year].append((cad_num, ext_type))
@@ -272,10 +290,12 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
                             else:
                                 print('\tОбработка пропущена, файл с таким содерижмым уже существует')
                                 DEBUGTEXT += f"🞉содержимое: {cad_num}, {ext_date}, {file_size}\n"
-
+                            timer.bip('end file')
                         except FileNotFoundError as ex:
                             print('\tФайл не доступен:', ex)
+                    timer.bip('end cad_num')
                     # await telegram_bot.send_message(message.from_user.id, text=DEBUGTEXT)
+                timer.bip('cad_nums completed')
                 text += f'Скопирован{"ы" if n_copied != 1 else ""} {n_copied} файл{"а" if n_copied%10 in (2,3,4) else ""}{"ов" if n_copied%10 in (5,6,7,8,9,0) else ""}\n'
                 if years_count:
                     text += f'По годам:<code>\n'
