@@ -391,7 +391,6 @@ async def default_input(message: types.Message, **kwargs):
     except Py4JNetworkError:
         text = 'DocFetcher не запущен'
     await send_multipart_msg(message.from_user.id, text)
-    # await telegram_bot.send_message(message.from_user.id, text, reply_markup=get_kbd(), parse_mode="HTML")
 
 
 def docfetcher_search(query, port=28834):
