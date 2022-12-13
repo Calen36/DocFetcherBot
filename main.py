@@ -175,13 +175,16 @@ async def input_task_name(message: types.Message, state: FSMContext,  *args, **k
 
 
 class Timer:
-    def __init__(self):
+    def __init__(self, treshold=0):
+        self.treshold = treshold
         self.time = datetime.now()
 
     def bip(self, message=''):
+        """Отладочный таймер. Если время между вызовами метода bip больше treshold - выводит сообщение"""
         now = datetime.now()
         delta = now - self.time
-        print(f">> {delta.seconds} > {message}")
+        if delta.seconds > self.treshold:
+            print(f">>>> {delta.seconds} > {message}")
         self.time = now
 
 
