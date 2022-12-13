@@ -260,34 +260,50 @@ async def input_cad_nums(message: types.Message, state: FSMContext,  *args, **kw
                         try:
                             timer.bip('try')
                             ext_date = get_date(file.getPathStr())
+                            timer.bip('1')
                             if not globals.DATE_DIRS:  # если пользователь не выбрал опцию Каталоги по Датам, то дата сокращаестся до года (и, соответственно выписки кладутся в подпапки по годам, а не по отдельным датам)
                                 ext_date = ext_date[:4]
+                            timer.bip('2')
                             file_size = os.path.getsize(file.getPathStr())
+                            timer.bip('3')
                             ext_type = 2 if file.getPathStr() in type2_files else 1
+                            timer.bip('4')
                             if (cad_num, ext_date, file_size) not in cn_dates_and_sizes:  # обрабатываем файл только если файлов с тем же номером, датой и размером за эту сессию не обрабатывалось.
+                                timer.bip('5')
                                 if not use_cadaster_kvartals or not globals.DATE_DIRS:  # если ищем не уникальные кадастровые номера, а кадастровые кварталы - проверку на уникльность выписок пропускаем
+                                    timer.bip('6')
                                     cn_dates_and_sizes.append((cad_num, ext_date, file_size))
                                 # каталог с датой/годом для выписки
+                                timer.bip('7')
                                 ext_dir_path = os.path.join(task_path, ext_date)
+                                timer.bip('8')
                                 if not os.path.exists(ext_dir_path):
+                                    timer.bip('9')
                                     os.makedirs(ext_dir_path)
                                 # конечное расположение файла выписки
+                                timer.bip('11')
                                 target_filename = os.path.join(ext_dir_path, file.getFilename())
+                                timer.bip('11')
                                 if not os.path.exists(target_filename):
                                     timer.bip('start copy')
                                     shutil.copy(file.getPathStr(), ext_dir_path)
+                                    timer.bip('12')
                                     print('\tСкопировано. Новое расположение:', ext_dir_path)
                                     n_copied += 1
                                     timer.bip('end copy')
                                     year = ext_date[:4]
                                     if year in years_count:
+                                        timer.bip('year')
                                         years_count[year].append((cad_num, ext_type))
                                     else:
+                                        timer.bip('not year')
                                         years_count[year] = [(cad_num, ext_type)]
                                 else:
+                                    timer.bip('skip copy')
                                     print('\tКопирование пропущено, файл c таким именем уже существует:', target_filename)
                                     DEBUGTEXT += f"🞉имя: {target_filename}\n"
                             else:
+                                timer.bip('content exist')
                                 print('\tОбработка пропущена, файл с таким содерижмым уже существует')
                                 DEBUGTEXT += f"🞉содержимое: {cad_num}, {ext_date}, {file_size}\n"
                             timer.bip('end file')
